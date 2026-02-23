@@ -181,7 +181,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess })
         </button>
         
         <p className="text-[10px] text-zinc-500 text-center mt-4 uppercase tracking-widest">
-          Secure payment via SSLCommerz / bKash Gateway
+          Secure payment via UddoktaPay
         </p>
       </div>
     </form>
