@@ -151,7 +151,7 @@ export default function App() {
                 <DetailCard
                   icon={<MapPin className="h-6 w-6 text-primary" />}
                   title="Location"
-                  content="RGLHS Playground 7"
+                  content="RGLHS Playground"
                   subContent="Main Event Area"
                 />
                 <DetailCard
