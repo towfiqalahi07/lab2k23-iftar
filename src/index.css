@@ -1,0 +1,26 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&family=Outfit:wght@400;600;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-primary: #10b981; /* Emerald 500 */
+  --color-secondary: #059669; /* Emerald 600 */
+  --color-accent: #f59e0b; /* Amber 500 */
+}
+
+@layer base {
+  body {
+    @apply bg-[#0a0a0a] text-zinc-100 font-sans antialiased;
+  }
+}
+
+.gaming-progress-glow {
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.5);
+}
+
+.glass-panel {
+  @apply bg-zinc-900/50 backdrop-blur-md border border-white/10;
+}
