@@ -50,9 +50,13 @@ export const StatusChecker: React.FC = () => {
 
       if (res.ok) {
         const data = await res.json();
-        setResult(data.registration);
-        setIsSponsoringMore(false);
-        alert(`Successfully sponsored ${extraMeals} more meals! Thank you.`);
+        if (data.payment_url) {
+          window.location.href = data.payment_url;
+        } else {
+          setResult(data.registration);
+          setIsSponsoringMore(false);
+          alert(`Successfully sponsored ${extraMeals} more meals! Thank you.`);
+        }
       } else {
         alert("Failed to update sponsorship.");
       }

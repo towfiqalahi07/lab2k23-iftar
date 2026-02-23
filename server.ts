@@ -6,6 +6,7 @@ import Database from "better-sqlite3";
 import path from "path";
 import dotenv from "dotenv";
 import { fileURLToPath } from 'url';
+import axios from 'axios';
 
 dotenv.config();
 
@@ -52,6 +53,16 @@ db.exec(`
   )
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS payments (
+    invoice_id TEXT PRIMARY KEY,
+    type TEXT NOT NULL,
+    data TEXT NOT NULL,
+    status TEXT DEFAULT 'PENDING',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
 function generateAccessCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
@@ -85,31 +96,163 @@ async function startServer() {
     });
   });
 
-  app.post("/api/register", (req, res) => {
+  app.post("/api/register", async (req, res) => {
     const { name, phone, batchId, sponsoredCount, totalPaid } = req.body;
-    console.log(`Registration attempt: ${name}, ${phone}, ${batchId}`);
-    const accessCode = generateAccessCode();
-
+    
     try {
-      const stmt = db.prepare("INSERT INTO registrations (name, phone, batch_id, sponsored_count, total_paid, access_code) VALUES (?, ?, ?, ?, ?, ?)");
-      const result = stmt.run(name, phone, batchId, sponsoredCount, totalPaid, accessCode);
-      
-      const registration = db.prepare("SELECT * FROM registrations WHERE id = ?").get(result.lastInsertRowid) as any;
+      const baseURL = process.env.UDDOKTAPAY_BASE_URL || "https://sandbox.uddoktapay.com";
+      const apiKey = process.env.UDDOKTAPAY_API_KEY;
 
-      console.log(`Registration successful: ${accessCode}`);
+      if (!apiKey) {
+        throw new Error("UDDOKTAPAY_API_KEY is not configured");
+      }
 
-      // Broadcast update to all clients
-      const stats = db.prepare("SELECT SUM(sponsored_count) as total_sponsored, COUNT(*) as total_registrations FROM registrations").get() as { total_sponsored: number, total_registrations: number };
-      io.emit("stats_update", {
-        totalSponsored: stats.total_sponsored || 0,
-        totalRegistrations: stats.total_registrations || 0,
-        goal: 50
+      const response = await axios.post(`${baseURL}/api/checkout-v2`, {
+        full_name: name,
+        email: "customer@example.com", // Placeholder as email is not collected
+        amount: totalPaid,
+        metadata: {
+          type: 'registration',
+          name,
+          phone,
+          batchId,
+          sponsoredCount
+        },
+        redirect_url: `${req.headers.origin}/?payment=success`,
+        cancel_url: `${req.headers.origin}/?payment=cancel`,
+        webhook_url: `${req.headers.origin}/api/payment/webhook`
+      }, {
+        headers: {
+          'RT-UDDOKTAPAY-API-KEY': apiKey,
+          'accept': 'application/json',
+          'content-type': 'application/json'
+        }
       });
 
-      res.json({ success: true, registration });
-    } catch (error) {
-      console.error("Registration error:", error);
-      res.status(500).json({ error: "Failed to register. Database error." });
+      if (response.data && response.data.payment_url) {
+        // Store pending payment
+        db.prepare("INSERT INTO payments (invoice_id, type, data) VALUES (?, ?, ?)")
+          .run(response.data.invoice_id, 'registration', JSON.stringify({ name, phone, batchId, sponsoredCount, totalPaid }));
+        
+        res.json({ success: true, payment_url: response.data.payment_url });
+      } else {
+        res.status(500).json({ error: "Failed to create payment session" });
+      }
+    } catch (error: any) {
+      console.error("Payment creation error:", error.response?.data || error.message);
+      res.status(500).json({ error: "Payment gateway error" });
+    }
+  });
+
+  app.post("/api/sponsor-more", async (req, res) => {
+    const { code, count, amount } = req.body;
+    
+    try {
+      const registration = db.prepare("SELECT name FROM registrations WHERE access_code = ?").get(code.toUpperCase()) as any;
+      if (!registration) return res.status(404).json({ error: "Registration not found" });
+
+      const baseURL = process.env.UDDOKTAPAY_BASE_URL || "https://sandbox.uddoktapay.com";
+      const apiKey = process.env.UDDOKTAPAY_API_KEY;
+
+      const response = await axios.post(`${baseURL}/api/checkout-v2`, {
+        full_name: registration.name,
+        email: "customer@example.com",
+        amount: amount,
+        metadata: {
+          type: 'sponsorship',
+          code: code.toUpperCase(),
+          count,
+          amount
+        },
+        redirect_url: `${req.headers.origin}/?payment=success`,
+        cancel_url: `${req.headers.origin}/?payment=cancel`,
+        webhook_url: `${req.headers.origin}/api/payment/webhook`
+      }, {
+        headers: {
+          'RT-UDDOKTAPAY-API-KEY': apiKey,
+          'accept': 'application/json',
+          'content-type': 'application/json'
+        }
+      });
+
+      if (response.data && response.data.payment_url) {
+        db.prepare("INSERT INTO payments (invoice_id, type, data) VALUES (?, ?, ?)")
+          .run(response.data.invoice_id, 'sponsorship', JSON.stringify({ code: code.toUpperCase(), count, amount }));
+        
+        res.json({ success: true, payment_url: response.data.payment_url });
+      } else {
+        res.status(500).json({ error: "Failed to create payment session" });
+      }
+    } catch (error: any) {
+      console.error("Sponsorship payment error:", error.response?.data || error.message);
+      res.status(500).json({ error: "Payment gateway error" });
+    }
+  });
+
+  app.post("/api/payment/verify", async (req, res) => {
+    const { invoice_id } = req.body;
+    
+    try {
+      const baseURL = process.env.UDDOKTAPAY_BASE_URL || "https://sandbox.uddoktapay.com";
+      const apiKey = process.env.UDDOKTAPAY_API_KEY;
+
+      const response = await axios.post(`${baseURL}/api/verify-payment`, {
+        invoice_id
+      }, {
+        headers: {
+          'RT-UDDOKTAPAY-API-KEY': apiKey,
+          'accept': 'application/json',
+          'content-type': 'application/json'
+        }
+      });
+
+      if (response.data && response.data.status === 'COMPLETED') {
+        const payment = db.prepare("SELECT * FROM payments WHERE invoice_id = ?").get(invoice_id) as any;
+        
+        if (!payment || payment.status === 'COMPLETED') {
+          // Already processed or not found
+          const regData = payment ? JSON.parse(payment.data) : null;
+          if (payment.type === 'registration') {
+             const reg = db.prepare("SELECT * FROM registrations WHERE phone = ? AND name = ?").get(regData.phone, regData.name);
+             return res.json({ success: true, registration: reg });
+          }
+          return res.json({ success: true });
+        }
+
+        const data = JSON.parse(payment.data);
+        let resultRegistration = null;
+
+        if (payment.type === 'registration') {
+          const accessCode = generateAccessCode();
+          const stmt = db.prepare("INSERT INTO registrations (name, phone, batch_id, sponsored_count, total_paid, access_code) VALUES (?, ?, ?, ?, ?, ?)");
+          const result = stmt.run(data.name, data.phone, data.batchId, data.sponsoredCount, data.totalPaid, accessCode);
+          resultRegistration = db.prepare("SELECT * FROM registrations WHERE id = ?").get(result.lastInsertRowid);
+        } else if (payment.type === 'sponsorship') {
+          const reg = db.prepare("SELECT id, sponsored_count, total_paid FROM registrations WHERE access_code = ?").get(data.code) as any;
+          if (reg) {
+            db.prepare("UPDATE registrations SET sponsored_count = ?, total_paid = ? WHERE id = ?")
+              .run(reg.sponsored_count + data.count, reg.total_paid + data.amount, reg.id);
+            resultRegistration = db.prepare("SELECT * FROM registrations WHERE id = ?").get(reg.id);
+          }
+        }
+
+        db.prepare("UPDATE payments SET status = 'COMPLETED' WHERE invoice_id = ?").run(invoice_id);
+
+        // Broadcast update
+        const stats = db.prepare("SELECT SUM(sponsored_count) as total_sponsored, COUNT(*) as total_registrations FROM registrations").get() as { total_sponsored: number, total_registrations: number };
+        io.emit("stats_update", {
+          totalSponsored: stats.total_sponsored || 0,
+          totalRegistrations: stats.total_registrations || 0,
+          goal: 50
+        });
+
+        res.json({ success: true, registration: resultRegistration });
+      } else {
+        res.status(400).json({ error: "Payment not completed" });
+      }
+    } catch (error: any) {
+      console.error("Payment verification error:", error.response?.data || error.message);
+      res.status(500).json({ error: "Verification failed" });
     }
   });
 
@@ -121,38 +264,6 @@ async function startServer() {
       res.json(registration);
     } else {
       res.status(404).json({ error: "Invalid access code" });
-    }
-  });
-
-  app.post("/api/sponsor-more", (req, res) => {
-    const { code, count, amount } = req.body;
-    
-    try {
-      const registration = db.prepare("SELECT id, sponsored_count, total_paid FROM registrations WHERE access_code = ?").get(code.toUpperCase()) as any;
-      
-      if (!registration) {
-        return res.status(404).json({ error: "Registration not found" });
-      }
-
-      const newCount = registration.sponsored_count + count;
-      const newTotal = registration.total_paid + amount;
-
-      db.prepare("UPDATE registrations SET sponsored_count = ?, total_paid = ? WHERE id = ?")
-        .run(newCount, newTotal, registration.id);
-
-      // Broadcast update to all clients
-      const stats = db.prepare("SELECT SUM(sponsored_count) as total_sponsored, COUNT(*) as total_registrations FROM registrations").get() as { total_sponsored: number, total_registrations: number };
-      io.emit("stats_update", {
-        totalSponsored: stats.total_sponsored || 0,
-        totalRegistrations: stats.total_registrations || 0,
-        goal: 50
-      });
-
-      const updated = db.prepare("SELECT * FROM registrations WHERE id = ?").get(registration.id);
-      res.json({ success: true, registration: updated });
-    } catch (error) {
-      console.error("Sponsorship error:", error);
-      res.status(500).json({ error: "Failed to update sponsorship" });
     }
   });
 

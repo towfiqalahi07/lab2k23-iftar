@@ -46,13 +46,18 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess })
 
       if (response.ok) {
         const data = await response.json();
-        confetti({
-          particleCount: 150,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#10b981', '#059669', '#f59e0b']
-        });
-        onSuccess(data.registration);
+        if (data.payment_url) {
+          window.location.href = data.payment_url;
+        } else {
+          // Fallback if no payment URL (shouldn't happen with real integration)
+          confetti({
+            particleCount: 150,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ['#10b981', '#059669', '#f59e0b']
+          });
+          onSuccess(data.registration);
+        }
       } else {
         const errorData = await response.json().catch(() => ({ error: "Unknown server error" }));
         alert(errorData.error || "Registration failed. Please try again.");

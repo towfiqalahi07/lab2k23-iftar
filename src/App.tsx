@@ -20,10 +20,50 @@ export default function App() {
   const [registrationData, setRegistrationData] = useState<any>(null);
   const [adminPassword, setAdminPassword] = useState('');
   const [isAdminLoading, setIsAdminLoading] = useState(false);
+  const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
   
   const targetDate = new Date('2026-03-06T17:00:00');
 
   useEffect(() => {
+    // Check for payment redirect
+    const urlParams = new URLSearchParams(window.location.search);
+    const invoiceId = urlParams.get('invoice_id');
+    const paymentStatus = urlParams.get('payment');
+
+    if (invoiceId && paymentStatus === 'success') {
+      setIsVerifyingPayment(true);
+      fetch('/api/payment/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoice_id: invoiceId })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.registration) {
+          setRegistrationData(data.registration);
+          setView('confirmation');
+          // Clean up URL
+          window.history.replaceState({}, document.title, "/");
+        } else if (data.success) {
+           // Sponsorship success, just return home
+           setView('home');
+           window.history.replaceState({}, document.title, "/");
+           alert("Payment verified! Thank you for your contribution.");
+        } else {
+          alert("Payment verification failed.");
+          window.history.replaceState({}, document.title, "/");
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        alert("Error verifying payment.");
+      })
+      .finally(() => setIsVerifyingPayment(false));
+    } else if (paymentStatus === 'cancel') {
+      alert("Payment was cancelled.");
+      window.history.replaceState({}, document.title, "/");
+    }
+
     fetch('/api/stats')
       .then(res => res.json())
       .then(data => setStats(data));
@@ -96,6 +136,15 @@ export default function App() {
       </nav>
 
       <main className="relative z-10 max-w-6xl mx-auto px-4 py-12 md:py-20">
+        {isVerifyingPayment && (
+          <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center">
+            <div className="text-center space-y-4">
+              <Loader2 className="h-12 w-12 text-primary animate-spin mx-auto" />
+              <h2 className="text-2xl font-display font-bold text-white">Verifying Payment...</h2>
+              <p className="text-zinc-400">Please wait while we confirm your transaction.</p>
+            </div>
+          </div>
+        )}
         <AnimatePresence mode="wait">
           {view === 'home' && (
             <motion.div
