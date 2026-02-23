@@ -5,10 +5,16 @@ import { createServer as createViteServer } from "vite";
 import Database from "better-sqlite3";
 import path from "path";
 import dotenv from "dotenv";
+import { fileURLToPath } from 'url';
 
 dotenv.config();
 
-const db = new Database("registrations.db");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const isVercel = process.env.VERCEL === '1';
+const dbPath = isVercel ? path.join("/tmp", "registrations.db") : "registrations.db";
+const db = new Database(dbPath);
 
 // Initialize database with schema check
 const tableInfo = db.prepare("PRAGMA table_info(registrations)").all() as any[];
@@ -183,9 +189,18 @@ async function startServer() {
     });
   }
 
-  httpServer.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  if (!isVercel) {
+    httpServer.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  }
+
+  return app;
 }
 
-startServer();
+const appPromise = startServer();
+
+export default async (req: any, res: any) => {
+  const app = await appPromise;
+  return app(req, res);
+};

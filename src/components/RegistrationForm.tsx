@@ -54,12 +54,12 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess })
         });
         onSuccess(data.registration);
       } else {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({ error: "Unknown server error" }));
         alert(errorData.error || "Registration failed. Please try again.");
       }
     } catch (error) {
-      console.error(error);
-      alert("Network error. Please check your connection and try again.");
+      console.error("Registration fetch error:", error);
+      alert(`Network error: ${error instanceof Error ? error.message : 'Unknown error'}. If you are on Vercel, ensure your backend is correctly configured.`);
     } finally {
       setIsSubmitting(false);
     }
