@@ -114,7 +114,7 @@ export const StatusChecker: React.FC = () => {
                 <Clock className="h-3 w-3" /> 5:00 PM
               </div>
               <div className="flex items-center gap-2 text-zinc-400 text-xs">
-                <MapPin className="h-3 w-3" /> RGLHS Playground 7
+                <MapPin className="h-3 w-3" /> RGLHS Playground
               </div>
             </div>
           </motion.div>
