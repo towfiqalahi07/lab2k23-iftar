@@ -30,8 +30,8 @@ export const EventDetails: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <DetailItem icon={<Calendar />} label="Date" value="March 6th, 2026" />
-            <DetailItem icon={<Clock />} label="Time" value="5:00 PM - 8:00 PM" />
-            <DetailItem icon={<MapPin />} label="Venue" value="RGLHS Playground 7" />
+            <DetailItem icon={<Clock />} label="Time" value="5:00 PM Onwards" />
+            <DetailItem icon={<MapPin />} label="Venue" value="RGLHS Playground" />
             <DetailItem icon={<Star />} label="Dress Code" value="Traditional / Modest" />
           </div>
         </div>
