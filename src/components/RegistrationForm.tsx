@@ -27,6 +27,10 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess })
     setIsSubmitting(true);
 
     // Simulate payment gateway delay
+    // To integrate a real gateway (e.g., SSLCommerz):
+    // 1. Call your backend to create a payment session
+    // 2. Redirect the user to the gateway's payment page
+    // 3. Handle the callback in your backend to confirm payment and save registration
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     try {
@@ -181,7 +185,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess })
         </button>
         
         <p className="text-[10px] text-zinc-500 text-center mt-4 uppercase tracking-widest">
-          Secure payment via UddoktaPay
+          Secure payment via SSLCommerz / bKash Gateway
         </p>
       </div>
     </form>

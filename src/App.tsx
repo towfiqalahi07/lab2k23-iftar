@@ -145,7 +145,7 @@ export default function App() {
                 <DetailCard
                   icon={<Calendar className="h-6 w-6 text-primary" />}
                   title="Date & Time"
-                  content="6th March, 5:00 PM"
+                  content="6th March, 5:00 PM onwards"
                   subContent="Friday, Ramadan Special"
                 />
                 <DetailCard

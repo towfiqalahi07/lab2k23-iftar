@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Loader2, CheckCircle2, Heart, Calendar, Clock, MapPin, X } from 'lucide-react';
+import { Search, Loader2, CheckCircle2, Heart, Calendar, Clock, MapPin, X, CreditCard } from 'lucide-react';
 
 export const StatusChecker: React.FC = () => {
   const [code, setCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState('');
+  const [isSponsoringMore, setIsSponsoringMore] = useState(false);
+  const [extraMeals, setExtraMeals] = useState(1);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const handleCheck = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -15,6 +18,7 @@ export const StatusChecker: React.FC = () => {
     setIsLoading(true);
     setError('');
     setResult(null);
+    setIsSponsoringMore(false);
 
     try {
       const res = await fetch(`/api/check-status/${code}`);
@@ -28,6 +32,34 @@ export const StatusChecker: React.FC = () => {
       setError("Something went wrong. Please try again later.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSponsorMore = async () => {
+    setIsUpdating(true);
+    try {
+      const res = await fetch('/api/sponsor-more', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: result.access_code,
+          count: extraMeals,
+          amount: extraMeals * 50
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setResult(data.registration);
+        setIsSponsoringMore(false);
+        alert(`Successfully sponsored ${extraMeals} more meals! Thank you.`);
+      } else {
+        alert("Failed to update sponsorship.");
+      }
+    } catch (err) {
+      alert("Network error. Please try again.");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -106,12 +138,57 @@ export const StatusChecker: React.FC = () => {
               </div>
             </div>
 
+            <div className="pt-2">
+              {!isSponsoringMore ? (
+                <button
+                  onClick={() => setIsSponsoringMore(true)}
+                  className="w-full py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl text-xs font-bold border border-primary/20 transition-all flex items-center justify-center gap-2"
+                >
+                  <Heart className="h-3 w-3" /> Sponsor More Meals
+                </button>
+              ) : (
+                <div className="space-y-4 p-4 bg-primary/5 border border-primary/20 rounded-xl">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-white">Sponsor More Meals</span>
+                    <button onClick={() => setIsSponsoringMore(false)} className="text-zinc-500 hover:text-white">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-[10px] text-zinc-500 font-mono">
+                      <span>1 Meal</span>
+                      <span>10 Meals</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="1"
+                      max="10"
+                      value={extraMeals}
+                      onChange={e => setExtraMeals(parseInt(e.target.value))}
+                      className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-primary"
+                    />
+                    <div className="text-center text-sm font-bold text-primary">
+                      {extraMeals} Meals = {extraMeals * 50} BDT
+                    </div>
+                  </div>
+                  <button
+                    disabled={isUpdating}
+                    onClick={handleSponsorMore}
+                    className="w-full py-2 bg-primary hover:bg-secondary text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2"
+                  >
+                    {isUpdating ? <Loader2 className="h-3 w-3 animate-spin" /> : <CreditCard className="h-3 w-3" />}
+                    Pay & Sponsor
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div className="space-y-2 pt-2 border-t border-white/5">
               <div className="flex items-center gap-2 text-zinc-400 text-xs">
                 <Calendar className="h-3 w-3" /> March 6th, 2026
               </div>
               <div className="flex items-center gap-2 text-zinc-400 text-xs">
-                <Clock className="h-3 w-3" /> 5:00 PM
+                <Clock className="h-3 w-3" /> 5:00 PM onwards
               </div>
               <div className="flex items-center gap-2 text-zinc-400 text-xs">
                 <MapPin className="h-3 w-3" /> RGLHS Playground

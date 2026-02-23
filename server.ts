@@ -81,6 +81,7 @@ async function startServer() {
 
   app.post("/api/register", (req, res) => {
     const { name, phone, batchId, sponsoredCount, totalPaid } = req.body;
+    console.log(`Registration attempt: ${name}, ${phone}, ${batchId}`);
     const accessCode = generateAccessCode();
 
     try {
@@ -88,6 +89,8 @@ async function startServer() {
       const result = stmt.run(name, phone, batchId, sponsoredCount, totalPaid, accessCode);
       
       const registration = db.prepare("SELECT * FROM registrations WHERE id = ?").get(result.lastInsertRowid) as any;
+
+      console.log(`Registration successful: ${accessCode}`);
 
       // Broadcast update to all clients
       const stats = db.prepare("SELECT SUM(sponsored_count) as total_sponsored, COUNT(*) as total_registrations FROM registrations").get() as { total_sponsored: number, total_registrations: number };
@@ -99,8 +102,8 @@ async function startServer() {
 
       res.json({ success: true, registration });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: "Failed to register" });
+      console.error("Registration error:", error);
+      res.status(500).json({ error: "Failed to register. Database error." });
     }
   });
 
@@ -115,10 +118,43 @@ async function startServer() {
     }
   });
 
+  app.post("/api/sponsor-more", (req, res) => {
+    const { code, count, amount } = req.body;
+    
+    try {
+      const registration = db.prepare("SELECT id, sponsored_count, total_paid FROM registrations WHERE access_code = ?").get(code.toUpperCase()) as any;
+      
+      if (!registration) {
+        return res.status(404).json({ error: "Registration not found" });
+      }
+
+      const newCount = registration.sponsored_count + count;
+      const newTotal = registration.total_paid + amount;
+
+      db.prepare("UPDATE registrations SET sponsored_count = ?, total_paid = ? WHERE id = ?")
+        .run(newCount, newTotal, registration.id);
+
+      // Broadcast update to all clients
+      const stats = db.prepare("SELECT SUM(sponsored_count) as total_sponsored, COUNT(*) as total_registrations FROM registrations").get() as { total_sponsored: number, total_registrations: number };
+      io.emit("stats_update", {
+        totalSponsored: stats.total_sponsored || 0,
+        totalRegistrations: stats.total_registrations || 0,
+        goal: 50
+      });
+
+      const updated = db.prepare("SELECT * FROM registrations WHERE id = ?").get(registration.id);
+      res.json({ success: true, registration: updated });
+    } catch (error) {
+      console.error("Sponsorship error:", error);
+      res.status(500).json({ error: "Failed to update sponsorship" });
+    }
+  });
+
   // Admin Routes
   app.post("/api/admin/login", (req, res) => {
     const { password } = req.body;
-    if (password === "lab2k23admin") { // Simple password for demo
+    const adminPass = process.env.ADMIN_PASSWORD || "lab2k23admin";
+    if (password && password.trim() === adminPass) { 
       res.json({ success: true, token: "secret-admin-token" });
     } else {
       res.status(401).json({ error: "Unauthorized" });
