@@ -74,7 +74,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess })
     <form onSubmit={handleSubmit} className="glass-panel p-6 md:p-8 rounded-3xl space-y-6 max-w-xl mx-auto">
       <div className="space-y-2">
         <h2 className="text-2xl font-display font-bold text-white">Join the Iftar</h2>
-        <p className="text-zinc-400 text-sm">Fill in your details to secure your spot.</p>
+        <p className="text-zinc-400 text-sm">Fill in your details to secure your spot. Verified payment only, no fake registration.</p>
       </div>
 
       <div className="space-y-4">
@@ -190,7 +190,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess })
         </button>
         
         <p className="text-[10px] text-zinc-500 text-center mt-4 uppercase tracking-widest">
-          Secure payment via SSLCommerz / bKash Gateway
+          Secure payment via UddoktaPay (signature + amount verification)
         </p>
       </div>
     </form>
