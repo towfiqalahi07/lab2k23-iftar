@@ -162,7 +162,7 @@ export default function App() {
                   className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-zinc-900 border border-white/10 text-xs font-mono text-primary uppercase tracking-widest"
                 >
                   <Sparkles className="h-3 w-3" />
-                  Batch Lab2k23 Exclusive
+                  Premium Ramadan Experience • Lab2k23
                 </motion.div>
 
                 <motion.h1
@@ -243,6 +243,10 @@ export default function App() {
                       Your basic registration fee (150 BDT) covers the event costs and your meal. 
                       The sponsorship add-on (50 BDT per child) goes 100% towards the children's meals.
                     </p>
+                    <p className="text-zinc-500 text-xs leading-relaxed">
+                      Live leaderboard ranking, payment-confirmed registrations, and sponsorship totals are shown in real time
+                      so every contributor can track collective impact transparently.
+                    </p>
                   </div>
                   <div className="space-y-4">
                     <h3 className="text-lg font-bold text-zinc-200">Notes for Batchmates</h3>
@@ -257,9 +261,36 @@ export default function App() {
                       </li>
                       <li className="flex gap-2">
                         <span className="text-primary">•</span>
-                        Real-time progress bar shows our collective impact.
+                        Secure payment verification ensures no fake registration entries.
                       </li>
                     </ul>
+                  </div>
+                </div>
+
+                <div className="pt-6 border-t border-white/10 grid md:grid-cols-2 gap-8">
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-bold text-zinc-200">What We Are Building</h3>
+                    <ul className="space-y-2 text-sm text-zinc-400">
+                      <li>1) Landing page with particle backdrop, countdown, progress bar, event details, and leaderboard CTA.</li>
+                      <li>2) Registration flow with Name, Phone, Batch ID, sponsorship toggle, 1–20 slider, and auto-total.</li>
+                      <li>3) Secure payment verification for signature and amount before creating access code.</li>
+                      <li>4) Success page with confetti, access code, QR support, and screenshot reminder.</li>
+                      <li>5) Firestore-powered live leaderboard with top contributors highlighted.</li>
+                      <li>6) Protected admin dashboard with stats, payment tracking, CSV export, and manual adjustments.</li>
+                    </ul>
+                  </div>
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-bold text-zinc-200">Guideline to Make This Fully Functional</h3>
+                    <ol className="space-y-2 text-sm text-zinc-400 list-decimal list-inside">
+                      <li>Finish Firebase project setup (Auth, Firestore, hosting config, service account secrets).</li>
+                      <li>Connect UddoktaPay create-payment API from backend and redirect users after invoice creation.</li>
+                      <li>Deploy Cloud Function/webhook endpoint to verify payment signature + exact paid amount.</li>
+                      <li>Only after verification, write registration + generated access code into Firestore.</li>
+                      <li>Create leaderboard query sorted by sponsored meals; highlight top 5 and crown rank #1.</li>
+                      <li>Gate admin routes with Firebase Auth custom claims and role-based Firestore rules.</li>
+                      <li>Add CSV export, manual payment-status update, and donation adjustment audit logs.</li>
+                      <li>Complete final QA: mobile responsiveness, failed-payment retry, and production deployment.</li>
+                    </ol>
                   </div>
                 </div>
               </section>
