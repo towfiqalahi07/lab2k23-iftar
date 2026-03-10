@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { io } from 'socket.io-client';
 import { Calendar, MapPin, Users, Info, CheckCircle2, Heart, Sparkles, Shield, Lock, Loader2, ArrowDown } from 'lucide-react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { Countdown } from './components/Countdown';
 import { ProgressBar } from './components/ProgressBar';
 import { RegistrationForm } from './components/RegistrationForm';
@@ -334,6 +335,7 @@ export default function App() {
           </div>
         </footer>
       </main>
+      <SpeedInsights />
     </div>
   );
 }
